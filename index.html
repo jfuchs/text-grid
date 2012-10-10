@@ -1,0 +1,190 @@
+<!doctype html public>
+<!--[if lt IE 7]> <html lang="en-us" class="lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>    <html lang="en-us" class="lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>    <html lang="en-us" class="lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en-us"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+
+  <title></title>
+
+  <meta name="viewport" content="width=device-width">
+
+  <style type="text/css">
+
+  body {
+    font-size: 2em;
+  }
+
+  pre {
+    margin: 0;
+  }
+
+  #board {
+    position: relative;
+  }
+
+  #cursor {
+    top: 0;
+    left: 0;
+    position: absolute;
+    color: red;
+  }
+
+  </style>
+</head>
+<body>
+
+<div id="board">
+<pre id="grid"></pre>
+
+<pre id="cursor"></pre>
+</div>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+<script type="text/javascript">
+
+
+// var input, output, websocket;
+
+// function showMessage(m) {
+//   var p = document.createElement("p");
+//   p.innerHTML = m;
+//   output.appendChild(p);
+// }
+
+// function onMessage(e) {
+//   showMessage(e.data);
+// }
+
+// function onClose() {
+//   showMessage("Connection closed.");
+// }
+
+// function sendMessage() {
+//   var m = input.value;
+//   input.value = "";
+//   websocket.send(m);
+//   showMessage(m);
+// }
+
+// function onKey(e) {
+//   if (e.keyCode == 13) {
+//     sendMessage();
+//   }
+// }
+
+// function init() {
+//   input = document.getElementById("input");
+//   input.addEventListener("keyup", onKey, false);
+
+//   output = document.getElementById("output");
+
+//   websocket = new WebSocket("ws://{{.}}/socket");
+//   websocket.onmessage = onMessage;
+//   websocket.onclose = onClose;
+
+  height = 10;
+  width = 30;
+
+  grid = [];
+
+  for (var i = 0; i < height; i++) {
+    var row = []
+    for (var j = 0; j < width; j++) {
+      row.push('@');
+    }
+    grid.push(row);
+  }
+
+  function drawGrid() {
+    var content = $.map(grid, function(row){
+      return row.join('');
+    });
+    content = content.join('\n');
+    $('#grid').html(content);
+  }
+
+  drawGrid();
+
+  cursor = {x:2, y:2};
+
+  function drawCursor() {
+    var content = [];
+    for (var i = 0; i < cursor.y; i++) {
+      content.push ('\n');
+    }
+    for (var i = 0; i < cursor.x; i++) {
+      content.push (' ');
+    }
+    content.push('_');
+    $('#cursor').html(content.join(''));
+  }
+
+  drawCursor();
+
+
+  function translateCursor(x, y) {
+    cursor.x = (cursor.x + x + width) % width;
+    cursor.y = (cursor.y + y + height) % height;
+    drawCursor();
+  }
+
+  $(document).keydown(function(e) {
+        if (e.which == 38 /* up */) {
+      translateCursor( 0, -1);
+    }
+    else if (e.which == 40 /* down */) {
+      translateCursor( 0,  1);
+    }
+    else if (e.which == 37 /* left */) {
+      translateCursor(-1,  0);
+    }
+    else if (e.which == 39 /* right */) {
+      translateCursor( 1,  0);
+    }
+  });
+
+  $(document).keypress(function(e) {
+    var char = String.fromCharCode(e.which);
+    if (char.match(/[A-Za-z0-9\ \.\,]/)) {
+      // updateCharacter(String.fromCharCode(e.which), cursor.x, cursor.y);
+      websocket.send('UPDATE:' + cursor.x + ',' + cursor.y + ':' + char);
+      cursor.x = ++cursor.x % width;
+      if (cursor.x == 0) {
+        cursor.y = ++cursor.y % height;
+      }
+      drawCursor();
+    }
+  });
+
+  function updateCharacter(char, x, y) {
+    grid[y][x] = char;
+    drawGrid();
+  }
+
+
+  updateRegexp = /^UPDATE\:([0-9]+)\,([0-9]+)\:(.)$/
+
+  function onMessage(msg) {
+    console.log('Message:');
+    console.log(msg.data);
+    var match = msg.data.match(updateRegexp);
+    if (match) {
+      console.log(match)
+      updateCharacter(match[3], parseInt(match[1]), parseInt(match[2]));
+    }
+  }
+
+  function onClose() {
+    console.log('Close!');
+  }
+
+  websocket = new WebSocket("ws://"+window.location.host+"/socket");
+  websocket.onmessage = onMessage;
+  websocket.onclose = onClose;
+
+
+</script>
+</body>
+</html>
